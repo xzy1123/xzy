@@ -23,7 +23,9 @@
 
 ## 定时任务
 
-GitHub Actions 使用 UTC 时间，workflow 中的 `30 9 * * *` 对应北京时间每天 17:30。
+GitHub Actions 使用 UTC 时间。主触发点是北京时间每天 17:30，对应 `30 9 * * *`。
+
+由于 GitHub scheduled workflow 可能延迟或偶发丢弃，workflow 还设置了 17:47 和 18:13 两个兜底触发点。脚本会先检查当天是否已经生成过简报，已生成则跳过，避免重复推送。
 
 ## 手动测试
 
