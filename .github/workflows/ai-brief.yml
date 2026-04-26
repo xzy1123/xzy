@@ -1,0 +1,42 @@
+name: AI Application Brief
+
+on:
+  schedule:
+    # 17:30 Asia/Hong_Kong / Asia/Shanghai = 09:30 UTC.
+    - cron: "30 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  push-ai-brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generate and push AI brief
+        env:
+          SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
+          MAX_ITEMS_PER_SOURCE: "5"
+        run: node ai_brief_push.cjs
+
+      - name: Commit generated brief
+        run: |
+          if [ -n "$(git status --porcelain ai-briefs)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add ai-briefs
+            git commit -m "Add daily AI application brief"
+            git push
+          else
+            echo "No brief changes to commit."
+          fi
