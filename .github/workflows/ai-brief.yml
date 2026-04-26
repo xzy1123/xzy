@@ -2,12 +2,19 @@ name: AI Application Brief
 
 on:
   schedule:
-    # 17:30 Asia/Hong_Kong / Asia/Shanghai = 09:30 UTC.
+    # Primary run: 17:30 Asia/Hong_Kong / Asia/Shanghai = 09:30 UTC.
     - cron: "30 9 * * *"
+    # Fallback runs in case GitHub delays or drops the primary scheduled event.
+    - cron: "47 9 * * *"
+    - cron: "13 10 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: ai-brief-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   push-ai-brief:
@@ -18,18 +25,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Refresh branch before duplicate check
+        run: git pull --ff-only origin main
+
+      - name: Skip if today's brief already exists
+        id: duplicate-check
+        shell: bash
+        run: |
+          today=$(TZ=Asia/Shanghai date +%F)
+          if find ai-briefs -maxdepth 1 -name "ai_app_brief_${today}_*.md" 2>/dev/null | grep -q .; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "AI brief for $today already exists. Skipping push."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Node.js
+        if: steps.duplicate-check.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
       - name: Generate and push AI brief
+        if: steps.duplicate-check.outputs.skip != 'true'
         env:
           SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
           MAX_ITEMS_PER_SOURCE: "5"
         run: node ai_brief_push.cjs
 
       - name: Commit generated brief
+        if: steps.duplicate-check.outputs.skip != 'true'
         run: |
           if [ -n "$(git status --porcelain ai-briefs)" ]; then
             git config user.name "github-actions[bot]"
