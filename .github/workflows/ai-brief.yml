@@ -19,7 +19,7 @@ concurrency:
 jobs:
   push-ai-brief:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -50,7 +50,9 @@ jobs:
         if: steps.duplicate-check.outputs.skip != 'true'
         env:
           SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
-          MAX_ITEMS_PER_SOURCE: "5"
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-v4-flash' }}
+          MAX_ITEMS_PER_SOURCE: "6"
         run: node ai_brief_push.cjs
 
       - name: Commit generated brief
