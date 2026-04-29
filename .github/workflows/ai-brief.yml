@@ -28,14 +28,20 @@ jobs:
       - name: Refresh branch before duplicate check
         run: git pull --ff-only origin main
 
-      - name: Skip if today's brief already exists
+      - name: Skip scheduled run if today's brief already exists
         id: duplicate-check
         shell: bash
         run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Manual run requested. Bypassing duplicate check."
+            exit 0
+          fi
+
           today=$(TZ=Asia/Shanghai date +%F)
           if find ai-briefs -maxdepth 1 -name "ai_app_brief_${today}_*.md" 2>/dev/null | grep -q .; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "AI brief for $today already exists. Skipping push."
+            echo "AI brief for $today already exists. Skipping scheduled push."
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
