@@ -196,10 +196,40 @@ function renderRawBrief(sections) {
   return lines.join("\n");
 }
 
+function validateDeepSeekResponse(data) {
+  const choice = data?.choices?.[0];
+  const message = choice?.message;
+  const content = message?.content;
+  const usage = data?.usage;
+  const diagnostics = JSON.stringify({
+    model: typeof data?.model === "string" ? data.model : null,
+    finish_reason: choice?.finish_reason ?? null,
+    prompt_tokens: usage?.prompt_tokens ?? null,
+    completion_tokens: usage?.completion_tokens ?? null,
+    reasoning_tokens: usage?.completion_tokens_details?.reasoning_tokens ?? null,
+    has_reasoning: typeof message?.reasoning_content === "string" && message.reasoning_content.trim().length > 0,
+  });
+  if (!Array.isArray(data?.choices) || !choice || !message) {
+    throw new Error("DeepSeek 响应缺少 choices/message；" + diagnostics);
+  }
+  if (typeof content !== "string" || !content.trim()) {
+    throw new Error("DeepSeek 返回空正文或非文本正文；" + diagnostics);
+  }
+  if (choice.finish_reason !== "stop") {
+    throw new Error("DeepSeek 正文未正常完成（可能截断或被过滤）；" + diagnostics);
+  }
+  console.log("DeepSeek 润色成功；" + diagnostics + "；正文字符数=" + content.trim().length);
+  return content.trim();
+}
+
 async function polishWithDeepSeek(rawMarkdown) {
-  if (!DEEPSEEK_API_KEY) return null;
+  if (!DEEPSEEK_API_KEY.trim()) {
+    console.log("DeepSeek 未配置 API Key，使用本地简报。");
+    return null;
+  }
   const res = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
+    signal: AbortSignal.timeout(180000),
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
     body: JSON.stringify({
       model: DEEPSEEK_MODEL,
@@ -211,9 +241,12 @@ async function polishWithDeepSeek(rawMarkdown) {
       ],
     }),
   });
-  if (!res.ok) throw new Error(`DeepSeek ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  return data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (!res.ok) throw new Error(`DeepSeek HTTP ${res.status}`);
+  let data;
+  try { data = await res.json(); } catch {
+    throw new Error("DeepSeek 返回无效 JSON。");
+  }
+  return validateDeepSeekResponse(data);
 }
 
 function renderBrief(sections, polished) {
