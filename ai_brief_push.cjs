@@ -234,7 +234,8 @@ async function polishWithDeepSeek(rawMarkdown) {
     body: JSON.stringify({
       model: DEEPSEEK_MODEL,
       temperature: 0.35,
-      max_tokens: 2600,
+      thinking: { type: "disabled" },
+      max_tokens: 6000,
       messages: [
         { role: "system", content: "你是一名给中文技术从业者写 AI 应用简报的编辑。写作要像可靠的朋友，不要官腔，不要堆形容词。你必须保留原始条目的链接，不编造事实。" },
         { role: "user", content: ["请把下面的原始素材整理成一份中文微信简报。", "要求：", "1. 开头用 3-5 条“今天值得看”总结，不要超过 120 字。", "2. 每条内容都要用中文解释“为什么值得关注”，偏应用和落地，不讲论文细节。", "3. 尽量把英文标题翻译成中文，但保留产品名/项目名。", "4. 保留 Markdown 链接。", "5. 控制在手机上好读，分段短一些。", "", rawMarkdown].join("\n") },
